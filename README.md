@@ -1,23 +1,17 @@
-# OS X templates for Packer and VeeWee
+# Packer Template for Building VMware OS X Boxes
 
-This is a set of Packer templates and support scripts that will prepare an OS X installer media that performs an unattended install for use with [Packer](http://packer.io) and [VeeWee](http://github.com/jedi4ever/veewee). These were originally developed for VeeWee, but support for the VeeWee template has not been maintained since Packer's release and so it is only provided for historical purposes.
+This is a Packer template and a set of support scripts that will prepare an OS X installer media that performs an unattended install for use with [Packer](http://packer.io). This is a customized fork of Timothy Sutton's excellent work on `timsutton/osx-vm-templates`. That project has support for `VeeWee` and two additional providers.
 
-The machine defaults to being configured for use with [Vagrant](http://www.vagrantup.com), and supports three providers:
-
-- The [Hashicorp VMware Fusion provider](http://www.vagrantup.com/vmware) (recommended)
-- Vagrant's included [VirtualBox provider](http://docs.vagrantup.com/v2/virtualbox/index.html)
-- [Parallels](https://github.com/Parallels/vagrant-parallels)
+The machine defaults to being configured for use with [Vagrant](http://www.vagrantup.com), and supports one provider: the [Hashicorp VMware Fusion provider](http://www.vagrantup.com/vmware)
 
 It's possible to build a machine with different admin account settings, and without the vagrant ssh keys, for use with other systems such as CI.
 
-Use with the Fusion provider requires Vagrant 1.3.0, and use with the VirtualBox provider Vagrant 1.6.3 if using the Rsync file sync mechanism. Note that the VeeWee template also does not have any VirtualBox support.
+Use with the Fusion provider requires Vagrant 1.3.0, and use with the VirtualBox provider Vagrant 1.6.3 if using the Rsync file sync mechanism.
 
-Provisioning steps that are defined in the template via items in the [scripts](https://github.com/timsutton/osx-vm-templates/tree/master/scripts) directory:
+Provisioning steps that are defined in the template via items in the [scripts](https://github.com/dwtj/osx-vmware-builder/tree/master/scripts) directory:
 - [Vagrant-specific configuration](http://docs.vagrantup.com/v2/boxes/base.html)
 - VM guest tools installation if on VMware
 - Xcode CLI tools installation
-- Chef installation via the [Chef client installer for OS X](https://www.getchef.com/download-chef-client)
-- Puppet installation via [AutoPkg](https://github.com/autopkg/autopkg) [recipes](https://github.com/autopkg/recipes/tree/master/Puppetlabs)
 
 
 ## Preparing the ISO
@@ -55,7 +49,7 @@ The `prepare_iso.sh` script depends on `pkgbuild` utility. As `pkgbuild` is not 
 
 ## Use with Packer
 
-The path and checksum can now be added to your Packer template or provided as [user variables](http://www.packer.io/docs/templates/user-variables.html). The `packer` directory contains a template that can be used with the `vmware-iso` and `virtualbox-iso` builders. The `veewee` directory contains a definition, though as mentioned above it is not currently being maintained.
+The path and checksum can now be added to your Packer template or provided as [user variables](http://www.packer.io/docs/templates/user-variables.html). The `packer` directory contains a template that can be used with the `vmware-iso` builder.
 
 The Packer template adds some additional VM options required for OS X guests. Note that the paths given in the Packer template's `iso_url` builder key accepts file paths, both absolute and relative (to the current working directory).
 
@@ -116,38 +110,10 @@ Packer will instruct the system to download and install all available OS X updat
 packer build -var update_system=0 template.json
 ```
 
-## VirtualBox support
-
-VirtualBox support is thanks entirely to contributions by [Matt Behrens (@zigg)](https://github.com/zigg) to this repo, Vagrant and Packer.
-
-### Caveats
-
-#### Shared folders
-
-Oracle's support for OS X in VirtualBox is very limited, including the lack of guest tools to provide a shared folder mechanism. If using the VirtualBox provider in Vagrant, you will need to configure the shared folder that's set up by default (current folder mapped to `/vagrant`) to use either the `rsync` or `nfs` synced folder mechanisms. You can do this like any other synced folder config in your Vagrantfile:
-
-```ruby
-Vagrant.configure("2") do |config|
-  config.vm.provider "virtualbox" do |vb|
-    config.vm.synced_folder ".", "/vagrant", type: "rsync"
-  end
-end
-```
-
-#### Additional VM configuration for Packer
-
-So far we've seen that the `--cpuidset` option needs to be passed to `modifyvm` as a line in the packer template if a Haswell Intel Mac is used to build the VM, at least as of VirtualBox 4.3.12. It seems to cause a VM crash on at least one older Mac, a Core 2 Duo-based 2010 Mac Mini, though did not cause issues on an Ivy Bridge 2013 iMac I tested. If it's missing on a Haswell Mac, however, the VM hangs indefinitely. This behaviour is likely to change over time as Oracle keeps up with support for OS X guests.
-
-```json
-      "vboxmanage": [
-        ["modifyvm", "{{.Name}}", "--cpuidset", "00000001", "000306a9", "00020800", "80000201", "178bfbff"],
-      ]
-```
-
 
 ## Box sizes
 
-A built box with CLI tools, Puppet and Chef is over 5GB in size. It might be advisable to remove (with care) some unwanted applications in an additional postinstall script. It should also be possible to modify the OS X installer package to install fewer components, but this is non-trivial. One can also supply a custom "choice changes XML" file to modify the installer choices in a supported way, but from my testing, this only allows removing several auxiliary packages that make up no more than 6-8% of the installed footprint (for example, multilingual voices and dictionary files).
+It might be advisable to remove (with care) some unwanted applications in an additional postinstall script. It should also be possible to modify the OS X installer package to install fewer components, but this is non-trivial. One can also supply a custom "choice changes XML" file to modify the installer choices in a supported way, but from my testing, this only allows removing several auxiliary packages that make up no more than 6-8% of the installed footprint (for example, multilingual voices and dictionary files).
 
 
 ## Alternate approaches to VM provisioning
